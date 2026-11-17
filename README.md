@@ -2,14 +2,15 @@
 
 Web app per registrare entrate e uscite leggendo i QR code delle tessere, anche **senza rete**. Più telefoni inviano le scansioni a un foglio Google, che calcola in tempo reale le presenze e le ore per l'attestato.
 
-## Novità della versione 3 (app 2.1.1)
+## Novità della versione 3 (app 2.2.0)
 
+- **Righe incollate (script 3.2):** lo script legge anche l'ora scritta come testo (per esempio righe incollate da un file) e, se una riga resta illeggibile, Elabora adesso lo segnala.
 - **Reinvia tutte le scansioni (app 2.1.1):** in ⚙ → Scansioni, per recuperare scansioni mancanti nel foglio senza creare doppioni.
 - **Correzione importante (script 3.1):** con più telefoni che inviavano nello stesso momento, alcune scansioni potevano essere sovrascritte nel foglio, anche se il telefono le dava per inviate. Ora lo script completa ogni scrittura prima di passare all'invio successivo e conferma al telefono solo le scansioni che risultano davvero nel foglio. Quelle non confermate restano "da inviare" e il telefono le rimanda.
 
 - **Arrotondamento senza orari da programma:** se in Config mancano inizio e fine del giorno, le ore vengono comunque arrotondate ai 5 minuti, senza tetto. Prima il tetto era la prima e l'ultima scansione del giorno, e chi era entrato per primo e uscito per ultimo non veniva arrotondato.
 - **Durate prefissate per l'attestato:** per esempio 6 ore. Se al totale mancano al massimo 20 minuti (valore impostabile), il totale diventa 6:00. La colonna **Note** di Presenze lo segnala.
-- **Controllo QR:** si passano le tessere una dopo l'altra. L'app dice subito se numero, nome e cognome corrispondono all'Elenco e se il QR è già stato letto. Il foglio **Controllo QR** mostra chi non è stato letto, i QR letti più volte, i QR con un nome diverso (vecchi) e i numeri non in elenco.
+- **Controllo QR:** si avvia e si termina dal menu **Presenze → Controllo QR code**; mentre è attivo i telefoni hanno solo quel pulsante. Si passano le tessere una dopo l'altra. L'app dice subito se numero, nome e cognome corrispondono all'Elenco e se il QR è già stato letto. Il foglio **Controllo QR** mostra chi non è stato letto, i QR letti più volte, i QR con un nome diverso (vecchi) e i numeri non in elenco.
 - **Nomi dall'app:** per un QR con il solo numero, l'app permette di inserire cognome e nome, anche senza rete. Lo script li scrive nell'Elenco e tiene traccia nel foglio **Assegnazioni**.
 - **Prove sullo stesso foglio:** il comando **Archivia e svuota le scansioni di prova** prepara il foglio per l'evento vero.
 
@@ -44,7 +45,7 @@ Web app per registrare entrate e uscite leggendo i QR code delle tessere, anche 
 2. **Fogli.** Ricarica il foglio e scegli **Presenze → 1. Prepara / aggiorna fogli**. Vengono aggiunti il foglio Assegnazioni e, in Config, le voci **Durate attestato (ore)** e **Durate attestato aggiunta massima (minuti)**. Le spiegazioni in Config vengono aggiornate.
 3. **Nuova versione dello script:** Esegui il deployment → Gestisci deployment → matita → **Nuova versione**. Senza questo passo i telefoni continuano a usare lo script vecchio, e i nomi inseriti dall'app non arrivano.
 4. **GitHub.** Carica i file della cartella `2-GitHub/` sovrascrivendo quelli esistenti. Sono cambiati `index.html`, `app.js`, `sw.js` e `README.md`.
-5. **Telefoni.** Apri l'app con la rete, anche due volte. In ⚙, in fondo, deve comparire **Versione app 2.1.1**.
+5. **Telefoni.** Apri l'app con la rete, anche due volte. In ⚙, in fondo, deve comparire **Versione app 2.2.0**.
 
 ## A. Aggiornare dalla versione 1
 
@@ -165,15 +166,18 @@ Ogni invio resta nel foglio **Assegnazioni** (protetto), con ora, telefono e **E
 
 Serve prima dell'evento per controllare che tutte le tessere siano state stampate, che non ci siano QR doppi e che non ci siano QR vecchi, cioè con un numero abbinato a un altro nome.
 
-1. Nel foglio **Eventi** aggiungi la riga `controllo | Controllo QR | controllo`. Sui telefoni, dopo Aggiorna elenco, compare il pulsante **Controllo QR**.
-2. Scegli **Controllo QR** e passa le tessere una dopo l'altra, anche con più telefoni.
-3. Le letture di controllo **non contano per le presenze**.
+1. Nel foglio scegli **Presenze → Controllo QR code** e conferma. Il comando del menu diventa **Termina controllo QR code (in corso)**.
+2. Sui telefoni restano solo il pulsante viola **Controllo QR**, già selezionato, e la barra viola "CONTROLLO TESSERE: le letture non registrano presenze". Il cambio arriva subito con ⚙ → Aggiorna elenco o riaprendo l'app, altrimenti entro pochi minuti.
+3. Passa le tessere una dopo l'altra, **un solo lato per tessera** (fronte e retro hanno lo stesso QR), anche con più telefoni.
+4. Alla fine scegli **Presenze → Termina controllo QR code**: il messaggio riporta il risultato. Sui telefoni il pulsante sparisce e l'app chiede di scegliere Entrata o Uscita.
+
+Finché il controllo è attivo, i telefoni **non possono registrare entrate e uscite**. Le letture di controllo non contano mai per le presenze. Non serve più una riga "controllo" nel foglio Eventi: se c'è, puoi toglierla.
 
 | App | Significato |
 |---|---|
 | **verde** OK | Numero in elenco e nome uguale. Va bene anche un QR con il solo numero o un numero di riserva |
 | **giallo** GIÀ LETTO | Questo telefono ha già letto lo stesso numero: tessera passata due volte o QR stampato due volte |
-| **rosso** NOME DIVERSO | Il nome nel QR non è quello dell'Elenco: tessera vecchia, da ristampare |
+| **rosso** NOME DIVERSO | Il nome nel QR non è quello dell'Elenco: tessera vecchia da ristampare, oppure caratteri persi nella stampa unione (per esempio `Bi__evi_` al posto di `Bišćević`, vedi sotto) |
 | **arancione** NON IN ELENCO | Il numero non c'è nell'Elenco |
 
 Nel foglio **Controllo QR** (protetto, aggiornato come Presenze) c'è una riga per ogni persona dell'Elenco con Esito, Letture, Nome nel QR, Telefoni e Ultima lettura. A destra c'è un riepilogo: in elenco, letti, non letti, letti più volte, nome diverso, non in elenco.
@@ -182,7 +186,7 @@ Nel foglio **Controllo QR** (protetto, aggiornato come Presenze) c'è una riga p
 
 Il confronto dei nomi ignora maiuscole, spazi doppi e ordine delle parole.
 
-A controllo finito togli la riga `controllo` da Eventi, così il pulsante sparisce dai telefoni. Il foglio Controllo QR resta.
+**Trattini bassi al posto di lettere (š, ć, ł…):** non dipende dall'app né dalla macro. Excel, salvando in "CSV" normale, mette `_` al posto dei caratteri che non sa salvare. Per la stampa unione usa il file .xlsx o un "CSV UTF-8". Presenze e attestato prendono comunque il nome dall'Elenco.
 
 ## F4. Fare una prova sullo stesso foglio
 

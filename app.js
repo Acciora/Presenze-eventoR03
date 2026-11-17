@@ -14,7 +14,7 @@
  */
 'use strict';
 
-const VERSIONE_APP = '2.1.1';
+const VERSIONE_APP = '2.2.0';
 const SCARTO_OROLOGIO_MAX_MS = 2 * 60000;
 const CHIAVI = { cfg: 'pf_cfg', dati: 'pf_dati', evento: 'pf_evento' };
 const COLORI_EVENTI = ['#1b5e3b', '#1565c0', '#6a1b9a', '#00838f', '#ad1457', '#5d4037', '#283593', '#2e7d32'];
@@ -251,6 +251,7 @@ const finestraAperta = () =>
 function disegnaEventi() {
   const nav = $('eventi');
   nav.innerHTML = '';
+  $('modoControllo').classList.toggle('nascosto', (eventoCorrente() || {}).tipo !== 'controllo');
   const eventi = dati.eventi || [];
   if (!eventi.length) {
     const d = document.createElement('div');
@@ -263,7 +264,7 @@ function disegnaEventi() {
   eventi.forEach((e, i) => {
     const b = document.createElement('button');
     b.textContent = e.etichetta;
-    b.style.setProperty('--c', COLORI_EVENTI[i % COLORI_EVENTI.length]);
+    b.style.setProperty('--c', e.tipo === 'controllo' ? '#6a1b9a' : COLORI_EVENTI[i % COLORI_EVENTI.length]);
     if (e.codice === codiceEvento) b.classList.add('scelto');
     b.onclick = () => {
       codiceEvento = e.codice;
@@ -562,7 +563,7 @@ async function invia(manuale, reinvio) {
   if (!lista.length) { if (manuale) avviso('Niente da inviare.'); return; }
   if (!navigator.onLine) { if (manuale) avviso('Senza rete: le scansioni restano sul telefono.'); return; }
   inInvio = true;
-  let aggiunte = 0, confermate = 0;
+  let aggiunte = 0, confermate = 0, eventiCambiati = false;
   try {
     for (let i = 0; i < lista.length; i += 100) {
       const lotto = lista.slice(i, i + 100);
@@ -582,6 +583,7 @@ async function invia(manuale, reinvio) {
       await DB.aggiorna(aggiornate);
       aggiunte += Number(j.nuove) || 0;
       confermate += aggiornate.length;
+      if (typeof j.eventi === 'string' && j.eventi !== (dati.eventi || []).map((e) => e.codice).join(',')) eventiCambiati = true;
     }
     ultimoInvio = Date.now();
     erroreInvio = '';
@@ -597,6 +599,7 @@ async function invia(manuale, reinvio) {
     if (manuale) avviso('Invio non riuscito: ' + erroreInvio + '. Le scansioni restano sul telefono.', 5000);
   } finally {
     inInvio = false;
+    if (eventiCambiati) scaricaDati(false);
     aggiornaStato();
     if (!$('pannello').classList.contains('nascosto')) disegnaUltime();
   }
@@ -612,6 +615,7 @@ async function scaricaDati(manuale) {
     const t1 = Date.now();
     if (!j.ok) throw new Error(j.errore || 'risposta non valida');
     if (j.oraServer) { scartoOrologio = (t0 + t1) / 2 - j.oraServer; mostraAllarmeOrologio(); }
+    const eraControllo = (eventoCorrente() || {}).tipo === 'controllo';
     const nuovi = { elenco: j.elenco || [], eventi: j.eventi || [], impostazioni: j.impostazioni || {}, versione: j.versione, scaricatoIl: Date.now() };
     if (!scriviLS(CHIAVI.dati, nuovi)) throw new Error('memoria del telefono piena');
     const prima = elenco.size;
@@ -619,17 +623,27 @@ async function scaricaDati(manuale) {
     erroreDati = '';
     costruisciElenco();
     let eventoTolto = false;
-    if (codiceEvento && !eventoCorrente()) {           // l'evento scelto non esiste piu': si sceglie di nuovo
+    const soloControllo = dati.eventi.length === 1 && dati.eventi[0].tipo === 'controllo';
+    if (soloControllo && codiceEvento !== dati.eventi[0].codice) {
+      // Controllo delle tessere avviato dal foglio: unico pulsante, gia' selezionato.
+      codiceEvento = dati.eventi[0].codice;
+      scriviLS(CHIAVI.evento, codiceEvento);
+      ultimoTesto = '';
+      mostraEsito('', 'Controllo tessere', 'Passa i QR uno dopo l\'altro. Le letture non registrano presenze.');
+      avviso('Controllo delle tessere avviato dal foglio.', 5000);
+    } else if (codiceEvento && !eventoCorrente()) {    // l'evento scelto non esiste piu': si sceglie di nuovo
       codiceEvento = '';
       scriviLS(CHIAVI.evento, '');
       eventoTolto = true;
-      mostraEsito('rosso', 'Scegli l\'evento', 'L\'evento scelto e\' stato tolto dal foglio: tocca uno degli eventi in alto.');
+      if (eraControllo) mostraEsito('rosso', 'Scegli l\'evento', 'Controllo delle tessere terminato: tocca Entrata o Uscita in alto.');
+      else mostraEsito('rosso', 'Scegli l\'evento', 'L\'evento scelto e\' stato tolto dal foglio: tocca uno degli eventi in alto.');
       segnale('errore');
     }
     disegnaEventi();
     if (manuale || eventoTolto) {
       avviso(`Elenco aggiornato: ${elenco.size} persone` + (prima && elenco.size > prima ? ` (${elenco.size - prima} nuove)` : '') + '.' +
-             (eventoTolto ? ' L\'evento scelto non c\'e\' piu\': scegline un altro.' : ''), eventoTolto ? 7000 : 3500);
+             (eventoTolto ? (eraControllo ? ' Controllo delle tessere terminato: scegli Entrata o Uscita.'
+                                          : ' L\'evento scelto non c\'e\' piu\': scegline un altro.') : ''), eventoTolto ? 7000 : 3500);
     }
   } catch (e) {
     erroreDati = e.message || String(e);
