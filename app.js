@@ -14,7 +14,7 @@
  */
 'use strict';
 
-const VERSIONE_APP = '2.1.0';
+const VERSIONE_APP = '2.1.1';
 const SCARTO_OROLOGIO_MAX_MS = 2 * 60000;
 const CHIAVI = { cfg: 'pf_cfg', dati: 'pf_dati', evento: 'pf_evento' };
 const COLORI_EVENTI = ['#1b5e3b', '#1565c0', '#6a1b9a', '#00838f', '#ad1457', '#5d4037', '#283593', '#2e7d32'];
@@ -556,12 +556,13 @@ function programmaInvio(ms) {
   timerInvio = setTimeout(invia, ms || 0);
 }
 
-async function invia(manuale) {
+async function invia(manuale, reinvio) {
   if (inInvio || !cfg.u) { if (manuale && !cfg.u) avviso('Telefono non collegato.'); return; }
   const lista = daInviare();
   if (!lista.length) { if (manuale) avviso('Niente da inviare.'); return; }
   if (!navigator.onLine) { if (manuale) avviso('Senza rete: le scansioni restano sul telefono.'); return; }
   inInvio = true;
+  let aggiunte = 0, confermate = 0;
   try {
     for (let i = 0; i < lista.length; i += 100) {
       const lotto = lista.slice(i, i + 100);
@@ -579,10 +580,18 @@ async function invia(manuale) {
       const aggiornate = lotto.filter((s) => ricevuti.has(s.id));
       aggiornate.forEach((s) => { s.inviata = 1; });
       await DB.aggiorna(aggiornate);
+      aggiunte += Number(j.nuove) || 0;
+      confermate += aggiornate.length;
     }
     ultimoInvio = Date.now();
     erroreInvio = '';
-    if (manuale) avviso('Scansioni inviate.');
+    const nonConfermate = lista.length - confermate;
+    if (reinvio) {
+      avviso(`Reinvio completato: ${confermate} scansioni controllate, ${aggiunte} mancavano nel foglio e sono state aggiunte.` +
+             (nonConfermate ? ` ${nonConfermate} non confermate: restano da inviare.` : ''), 9000);
+    } else if (manuale) {
+      avviso(nonConfermate ? `Inviate, ma ${nonConfermate} non confermate dal foglio: restano da inviare.` : 'Scansioni inviate.');
+    }
   } catch (e) {
     erroreInvio = e.message || String(e);
     if (manuale) avviso('Invio non riuscito: ' + erroreInvio + '. Le scansioni restano sul telefono.', 5000);
@@ -726,6 +735,20 @@ async function condividi() {
   }
 }
 
+/** Rimanda al foglio tutte le scansioni del telefono: il foglio aggiunge solo quelle che non ha. */
+async function reinviaTutto() {
+  if (!cfg.u) { avviso('Telefono non collegato.'); return; }
+  if (!navigator.onLine) { avviso('Serve la rete per reinviare.'); return; }
+  if (!scansioni.length) { avviso('Nessuna scansione sul telefono.'); return; }
+  const ok = await dialogo(`Reinviare al foglio tutte le ${scansioni.length} registrazioni di questo telefono?\n` +
+    'Il foglio scarta quelle che ha gia\' e aggiunge solo quelle mancanti: non si creano doppioni.');
+  if (!ok) return;
+  scansioni.forEach((s) => { s.inviata = 0; });
+  await DB.aggiorna(scansioni);
+  aggiornaStato();
+  await invia(true, true);
+}
+
 async function cancellaDati() {
   if (daInviare().length) {
     avviso('Ci sono scansioni da inviare: prima inviale (o esportale).', 5000);
@@ -786,6 +809,7 @@ async function inizio() {
   $('btnAggiornaElenco').onclick = () => scaricaDati(true);
   $('btnEsporta').onclick = esporta;
   $('btnInviaFile').onclick = condividi;
+  $('btnReinvia').onclick = reinviaTutto;
   $('btnCancella').onclick = cancellaDati;
   $('btnSalvaDispositivo').onclick = () => {
     cfg.dispositivo = $('inDispositivo').value.trim().slice(0, 40);

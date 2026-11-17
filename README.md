@@ -2,7 +2,10 @@
 
 Web app per registrare entrate e uscite leggendo i QR code delle tessere, anche **senza rete**. Più telefoni inviano le scansioni a un foglio Google, che calcola in tempo reale le presenze e le ore per l'attestato.
 
-## Novità della versione 3 (app 2.1.0)
+## Novità della versione 3 (app 2.1.1)
+
+- **Reinvia tutte le scansioni (app 2.1.1):** in ⚙ → Scansioni, per recuperare scansioni mancanti nel foglio senza creare doppioni.
+- **Correzione importante (script 3.1):** con più telefoni che inviavano nello stesso momento, alcune scansioni potevano essere sovrascritte nel foglio, anche se il telefono le dava per inviate. Ora lo script completa ogni scrittura prima di passare all'invio successivo e conferma al telefono solo le scansioni che risultano davvero nel foglio. Quelle non confermate restano "da inviare" e il telefono le rimanda.
 
 - **Arrotondamento senza orari da programma:** se in Config mancano inizio e fine del giorno, le ore vengono comunque arrotondate ai 5 minuti, senza tetto. Prima il tetto era la prima e l'ultima scansione del giorno, e chi era entrato per primo e uscito per ultimo non veniva arrotondato.
 - **Durate prefissate per l'attestato:** per esempio 6 ore. Se al totale mancano al massimo 20 minuti (valore impostabile), il totale diventa 6:00. La colonna **Note** di Presenze lo segnala.
@@ -41,7 +44,7 @@ Web app per registrare entrate e uscite leggendo i QR code delle tessere, anche 
 2. **Fogli.** Ricarica il foglio e scegli **Presenze → 1. Prepara / aggiorna fogli**. Vengono aggiunti il foglio Assegnazioni e, in Config, le voci **Durate attestato (ore)** e **Durate attestato aggiunta massima (minuti)**. Le spiegazioni in Config vengono aggiornate.
 3. **Nuova versione dello script:** Esegui il deployment → Gestisci deployment → matita → **Nuova versione**. Senza questo passo i telefoni continuano a usare lo script vecchio, e i nomi inseriti dall'app non arrivano.
 4. **GitHub.** Carica i file della cartella `2-GitHub/` sovrascrivendo quelli esistenti. Sono cambiati `index.html`, `app.js`, `sw.js` e `README.md`.
-5. **Telefoni.** Apri l'app con la rete, anche due volte. In ⚙, in fondo, deve comparire **Versione app 2.1.0**.
+5. **Telefoni.** Apri l'app con la rete, anche due volte. In ⚙, in fondo, deve comparire **Versione app 2.1.1**.
 
 ## A. Aggiornare dalla versione 1
 
@@ -108,6 +111,7 @@ Su Android ogni esito ha anche una vibrazione diversa. Su iPhone ci sono solo su
 - **Impostazioni (⚙):**
   - **Invia file (email, WhatsApp…)**: manda il CSV delle scansioni del telefono; senza rete il messaggio parte quando la rete torna;
   - **Salva file nel telefono**: lo stesso file nei Download, come copia di sicurezza;
+  - **Reinvia tutte le scansioni al foglio**: se nel foglio manca qualche scansione che il telefono dà per inviata. Il foglio scarta quelle che ha già e aggiunge solo le mancanti; alla fine l'app dice quante ne ha aggiunte;
   - aggiornamento dell'elenco e ultime scansioni.
 
 ## E. Il foglio Presenze

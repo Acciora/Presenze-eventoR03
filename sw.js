@@ -1,6 +1,6 @@
 /* Presenze FIRE - service worker: l'app funziona anche senza rete.
  * Cambiare VERSIONE a ogni pubblicazione, cosi' i telefoni scaricano i file nuovi. */
-const VERSIONE = 'presenze-fire-2.1.0';
+const VERSIONE = 'presenze-fire-2.1.1';
 const FILE = ['./', './index.html', './app.js', './jsQR.js', './manifest.webmanifest',
               './icone/icon-192.png', './icone/icon-512.png', './icone/icon-512-maskable.png'];
 
